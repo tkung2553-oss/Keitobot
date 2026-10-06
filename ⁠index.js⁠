@@ -1,0 +1,47 @@
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
+
+const client = new Client({ 
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] 
+});
+
+const databaseKeys = new Map();
+
+client.once('ready', async () => {
+    console.log(`Bot logged in as ${client.user.tag}`);
+
+    const commands = [
+        new SlashCommandBuilder()
+            .setName('getkey')
+            .setDescription('รับคีย์ส่วนตัวสำหรับใช้งาน Keito Hub')
+    ].map(command => command.toJSON());
+
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+
+    try {
+        await rest.put(
+            Routes.applicationCommands(client.user.id),
+            { body: commands },
+        );
+        console.log('ลงทะเบียนคำสั่งบอทสำเร็จ!');
+    } catch (error) {
+        console.error(error);
+    }
+});
+
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    if (interaction.commandName === 'getkey') {
+        const randomKey = 'Keito-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+        databaseKeys.set(randomKey, { used: false, hwid: null });
+
+        try {
+            await interaction.user.send(`นี่คือคีย์ส่วนตัวของคุณ: **${randomKey}**\n*(คีย์นี้จะถูกล็อกติดกับเครื่องของคุณเมื่อนำไปรันครั้งแรก)*`);
+            await interaction.reply({ content: 'ส่งคีย์ไปที่ข้อความส่วนตัว (DM) ของคุณแล้ว!', ephemeral: true });
+        } catch (error) {
+            await interaction.reply({ content: 'ไม่สามารถส่งข้อความส่วนตัวได้ กรุณาเปิดรับ Direct Messages จากสมาชิกในเซิร์ฟเวอร์ก่อน!', ephemeral: true });
+        }
+    }
+});
+
+client.login(process.env.DISCORD_TOKEN);
